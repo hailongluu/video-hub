@@ -59,6 +59,14 @@ curl -s -XPOST localhost:8810/api/tts -H "Authorization: Bearer $T" -d '{"text":
 Body `create`: `title`, `aspect` (9:16|16:9|1:1), `theme` (midnight|sunrise|ocean|forest|paper), `voice`, `brand`, `captions`,
 `scenes[]` = `{text, heading?, bullets?, emoji?, image_url?}` (≤ 30 cảnh, ≤ 800 ký tự/cảnh, ≤ 8000 tổng).
 
+## Giọng riêng (giọng thật của Long)
+`~/Library/Application Support/VideoHub/custom_voices.json` (0600, KHÔNG nằm trong repo): vân giọng + mã tham chiếu, TTS nạp khi khởi động.
+Tạo bằng các script trong `voice-lab/` (chạy bằng python của `tts/.venv`; Whisper chạy bằng venv riêng có `faster-whisper`), thư mục làm việc `~/Movies/VideoHub/voice-lab`:
+1. `sample_speakers.py` cắt mẫu 8 s trong các bản ghi, tính vân giọng VieNeu (192 chiều) → `cluster.py` gom cụm người nói, ghép đoạn nghe thử.
+2. Người thật nghe xác nhận cụm nào là giọng mình (không tự đoán).
+3. `pick_refs.py` / `segments.py` chọn đoạn nói liền 3–8 s sạch nhất mỗi phong cách → `make_long_voices.py` gọi `add_voice` (không cần lời chép), lưu file giọng và đọc thử.
+Không cần fine-tune: v3 Turbo clone tức thì trên CPU; bản fine-tune LoRA chỉ chạy bằng PyTorch/GPU, chậm trên Mac Intel.
+
 ## Ghi chú cài đặt
 - `vieneu` trên Mac Intel: phải ghim `onnxruntime==1.23.2`, `numba<0.62`, `llvmlite<0.45` (bản mới không có wheel x86_64 macOS).
 - Giọng có watermark không nghe được của VieNeu (mặc định của thư viện).

@@ -26,6 +26,22 @@ _voices: dict[str, str] = {}
 _voice_cache: dict[str, object] = {}
 
 
+def _load_custom_voices(m):
+    """Giọng riêng (clone từ bản ghi thật, ví dụ giọng Long) ở custom_voices.json cạnh config.json — không nằm trong repo."""
+    p = _CFG.parent / "custom_voices.json"
+    if not p.exists():
+        return
+    import numpy as np
+
+    for name, v in json.loads(p.read_text()).items():
+        m._preset_voices[name] = {
+            "description": v.get("description", ""), "gender": v.get("gender", ""), "style": m.default_style,
+            "speaker_emb": np.asarray(v["speaker_emb"], dtype=np.float32),
+            "codes": None if v.get("codes") is None else np.asarray(v["codes"], dtype=np.int64),
+        }
+        _voices[name] = f"{name} — {v.get('description', '')}".strip(" —")
+
+
 def tts():
     global _tts
     if _tts is None:
@@ -33,6 +49,7 @@ def tts():
         _tts = Vieneu()
         for label, vid in _tts.list_preset_voices():
             _voices[vid] = label.replace("⭐", "").strip()
+        _load_custom_voices(_tts)
         print(f"VieNeu nạp xong sau {time.time() - t:.1f}s, {len(_voices)} giọng", flush=True)
     return _tts
 

@@ -5,7 +5,7 @@ description: Dựng video MP4 có giọng đọc tiếng Việt (VieNeu-TTS), ph
 
 # Nhà máy video trên Mac (video-hub)
 
-Mac của Long (i9 + AMD Radeon Pro 5500M) dựng video bằng **Remotion** trên GPU và đọc giọng bằng **VieNeu-TTS** (25 giọng Việt Bắc/Trung/Nam). Dựng trên GPU nhanh hơn CPU trên 10 lần: video 30 giây ≈ 1–1,5 phút. Một job chạy một lúc, job sau xếp hàng.
+Mac của Long (i9 + AMD Radeon Pro 5500M) dựng video bằng **Remotion** trên GPU và đọc giọng bằng **VieNeu-TTS** (25 giọng Việt Bắc/Trung/Nam + 5 giọng thật của Long). Dựng trên GPU nhanh hơn CPU trên 10 lần: video 30 giây ≈ 1–1,5 phút. Một job chạy một lúc, job sau xếp hàng.
 
 ## Gọi qua ll-hub (cách chuẩn)
 ```
@@ -38,6 +38,12 @@ Khi `status = "done"`: `download_url` (MP4) và `poster_url` (ảnh bìa). Link 
 - Lời đọc: viết đúng chính tả, có dấu câu (dấu chấm/phẩy tạo nhịp nghỉ). Số và từ viết tắt nên viết thành chữ nếu cần đọc chuẩn ("ba mẹo", "trí tuệ nhân tạo").
 - `image_url` (http/https, jpg/png/webp ≤ 15 MB): ảnh nền phủ tối + Ken Burns; nhà máy tự tải ảnh về.
 - Phụ đề karaoke bật mặc định (`captions: false` để tắt).
+
+## Giọng thật của Long ("Long Lưu")
+Clone từ bản ghi thật của Long (27/10/2026), độ giống ~0,8 theo vân giọng. 5 phong cách, chọn theo nội dung:
+`Long Lưu` (thuyết trình, mặc định cho giọng Long) · `Long Lưu · truyền cảm hứng` · `Long Lưu · tâm sự` · `Long Lưu · vlog` · `Long Lưu · dẫn chương trình`.
+- Chỉ dùng cho nội dung **của Long / công ty Long**, nói đúng quan điểm của Long. Không dùng giọng này để nói thay người khác, quảng cáo cho bên thứ ba, hay nội dung Long chưa duyệt.
+- Video dùng giọng Long khi đăng ra ngoài: `request_approval` như mọi việc đăng bài, ghi rõ "dùng giọng Long".
 
 ## Chỉ cần giọng đọc
 `call_upstream_tool(server="video-hub", tool="text_to_speech", arguments={"text": "...", "voice": "Thiện Minh"})` → WAV 48 kHz (≤ 3000 ký tự/lần).
