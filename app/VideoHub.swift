@@ -8,6 +8,39 @@ let envPath = info["VHPath"] as? String ?? "/usr/bin:/bin"
 let nodeBin = info["VHNode"] as? String ?? "node"
 let uvBin = info["VHUv"] as? String ?? "uv"
 let logDir = NSHomeDirectory() + "/Library/Logs"
+// Cấu hình chung với engine/TTS (server/config.mjs, tts/server.py): {"dataDir": "..."}
+let configDir = NSHomeDirectory() + "/Library/Application Support/VideoHub"
+let configFile = configDir + "/config.json"
+let defaultDataDir = NSHomeDirectory() + "/Movies/VideoHub"
+
+func readConfig() -> [String: Any] {
+    guard let d = FileManager.default.contents(atPath: configFile) else { return [:] }
+    return (try? JSONSerialization.jsonObject(with: d)) as? [String: Any] ?? [:]
+}
+
+func dataDir() -> String { readConfig()["dataDir"] as? String ?? defaultDataDir }
+
+func setDataDir(_ path: String) throws {
+    var c = readConfig()
+    c["dataDir"] = path
+    try FileManager.default.createDirectory(atPath: configDir, withIntermediateDirectories: true)
+    try JSONSerialization.data(withJSONObject: c, options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: configFile))
+}
+
+// Ổ ngoài (/Volumes/<tên>) chưa cắm thì không dùng được
+func volumeMissing(_ path: String) -> String? {
+    let parts = path.split(separator: "/")
+    guard parts.count >= 2, parts[0] == "Volumes" else { return nil }
+    return FileManager.default.fileExists(atPath: "/Volumes/\(parts[1])") ? nil : String(parts[1])
+}
+
+func freeSpace(_ path: String) -> String {
+    var p = path
+    while !FileManager.default.fileExists(atPath: p) && p != "/" { p = (p as NSString).deletingLastPathComponent }
+    guard let a = try? URL(fileURLWithPath: p).resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]),
+          let b = a.volumeAvailableCapacityForImportantUsage else { return "?" }
+    return ByteCountFormatter.string(fromByteCount: b, countStyle: .file)
+}
 
 struct Health { var tts = false; var engine = false; var running = 0; var queue = 0; var done = 0 }
 
@@ -19,6 +52,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var health = Health()
     var wanted = false
     var timer: Timer?
+    var moving = false
 
     func applicationDidFinishLaunching(_ n: Notification) {
         menu.delegate = self
@@ -44,6 +78,14 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc func startAll() {
+        let dir = dataDir()
+        if let v = volumeMissing(dir) {
+            alert("Ổ \"\(v)\" chưa cắm nên chưa lưu video được vào \(dir).\nCắm ổ hoặc chọn \"Đổi nơi lưu video…\" rồi bật lại.")
+            return
+        }
+        do { try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true) } catch {
+            alert("Không tạo được thư mục \(dir): \(error.localizedDescription)"); return
+        }
         wanted = true
         if !health.tts && tts?.isRunning != true {
             tts = spawn(uvBin, ["run", "--frozen", "python", "server.py"], cwd: root + "/tts", log: logDir + "/video-hub-tts.log")
@@ -69,7 +111,64 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refresh()
     }
 
-    @objc func openFolder() { NSWorkspace.shared.open(URL(fileURLWithPath: root + "/data/jobs")) }
+    @objc func openFolder() { NSWorkspace.shared.open(URL(fileURLWithPath: dataDir())) }
+
+    @objc func changeDataDir() {
+        let old = dataDir()
+        let panel = NSOpenPanel()
+        panel.title = "Chọn nơi lưu video"
+        panel.message = "Nên chọn thư mục KHÔNG đồng bộ iCloud (không nằm trong Desktop/Documents), ví dụ ~/Movies hoặc ổ ngoài."
+        panel.prompt = "Lưu video ở đây"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.directoryURL = URL(fileURLWithPath: FileManager.default.fileExists(atPath: old) ? old : NSHomeDirectory() + "/Movies")
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let new = url.standardizedFileURL.path
+        if new == old { return }
+        if new.hasPrefix(NSHomeDirectory() + "/Desktop") || new.hasPrefix(NSHomeDirectory() + "/Documents") || new.contains("/Mobile Documents/") {
+            let a = NSAlert()
+            a.messageText = "Thư mục này đang đồng bộ iCloud"
+            a.informativeText = "Video sẽ bị đẩy lên iCloud. Vẫn dùng thư mục này?"
+            a.addButton(withTitle: "Chọn lại"); a.addButton(withTitle: "Vẫn dùng")
+            if a.runModal() == .alertFirstButtonReturn { return changeDataDir() }
+        }
+        guard FileManager.default.isWritableFile(atPath: new) else { return alert("Không ghi được vào \(new).") }
+        let oldJobs = (try? FileManager.default.contentsOfDirectory(atPath: old + "/jobs")) ?? []
+        var move = false
+        if !oldJobs.isEmpty {
+            let a = NSAlert()
+            a.messageText = "Chuyển \(oldJobs.count) video cũ sang chỗ mới?"
+            a.informativeText = "Chuyển thì link tải cũ của agent vẫn dùng được. Không chuyển thì video cũ nằm lại ở \(old) và link cũ hết tác dụng."
+            a.addButton(withTitle: "Chuyển"); a.addButton(withTitle: "Để lại")
+            move = a.runModal() == .alertFirstButtonReturn
+        }
+        // engine/TTS chỉ đọc nơi lưu lúc khởi động: tắt, đổi, bật lại
+        let wasOn = wanted || health.engine || health.tts
+        if wasOn { stopAll() }
+        moving = true; draw()
+        DispatchQueue.global().async {
+            var err: String?
+            do {
+                try setDataDir(new)
+                if move {
+                    let fm = FileManager.default
+                    for sub in ["jobs", "tts"] {
+                        try fm.createDirectory(atPath: new + "/" + sub, withIntermediateDirectories: true)
+                        for f in (try? fm.contentsOfDirectory(atPath: old + "/" + sub)) ?? [] where !fm.fileExists(atPath: new + "/" + sub + "/" + f) {
+                            try fm.moveItem(atPath: old + "/" + sub + "/" + f, toPath: new + "/" + sub + "/" + f)
+                        }
+                    }
+                }
+            } catch { err = error.localizedDescription }
+            DispatchQueue.main.async {
+                self.moving = false
+                if let e = err { self.alert("Đổi nơi lưu bị lỗi: \(e)") }
+                if wasOn { self.startAll() } else { self.draw() }
+            }
+        }
+    }
     @objc func openLog() { NSWorkspace.shared.open(URL(fileURLWithPath: logDir + "/video-hub.log")) }
     @objc func openTtsLog() { NSWorkspace.shared.open(URL(fileURLWithPath: logDir + "/video-hub-tts.log")) }
     @objc func quit() { stopAll(); NSApp.terminate(nil) }
@@ -127,6 +226,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(withTitle: h.tts || h.engine ? "Bật phần còn thiếu" : "Bật nhà máy (TTS + engine)", action: #selector(startAll), keyEquivalent: "b").target = self
         }
         menu.addItem(.separator())
+        let dir = dataDir()
+        let missing = volumeMissing(dir)
+        let short = dir.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        menu.addItem(NSMenuItem(title: moving ? "Đang chuyển video sang chỗ mới…" : missing != nil ? "Lưu tại: \(short) (ổ chưa cắm!)" : "Lưu tại: \(short) · trống \(freeSpace(dir))", action: nil, keyEquivalent: ""))
+        if !moving { menu.addItem(withTitle: "Đổi nơi lưu video…", action: #selector(changeDataDir), keyEquivalent: "").target = self }
         menu.addItem(withTitle: "Mở thư mục video", action: #selector(openFolder), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Xem log engine", action: #selector(openLog), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Xem log TTS", action: #selector(openTtsLog), keyEquivalent: "").target = self

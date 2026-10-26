@@ -1,9 +1,16 @@
 import path from "node:path";
 import crypto from "node:crypto";
+import os from "node:os";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 export const ROOT = path.resolve(import.meta.dirname, "..");
-export const DATA = path.resolve(process.env.VH_DATA || path.join(ROOT, "data"));
+// Cấu hình chung (app thanh menu ghi, TTS và engine cùng đọc): ~/Library/Application Support/VideoHub/config.json
+export const CONFIG_DIR = path.resolve(process.env.VH_CONFIG || path.join(os.homedir(), "Library/Application Support/VideoHub"));
+mkdirSync(CONFIG_DIR, { recursive: true });
+const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
+const cfg = existsSync(CONFIG_FILE) ? JSON.parse(readFileSync(CONFIG_FILE, "utf8")) : {};
+// Nơi lưu video: mặc định ~/Movies/VideoHub (iCloud không đồng bộ), đổi trong app hoặc biến VH_DATA
+export const DATA = path.resolve(process.env.VH_DATA || cfg.dataDir || path.join(os.homedir(), "Movies/VideoHub"));
 export const PORT = Number(process.env.VH_PORT || 8810);
 export const HOST = process.env.VH_HOST || "0.0.0.0";
 export const TTS_URL = process.env.VH_TTS_URL || "http://127.0.0.1:8811";
@@ -13,8 +20,8 @@ export const PUBLIC_URL = (process.env.VH_PUBLIC_URL || `http://100.72.113.110:$
 mkdirSync(path.join(DATA, "jobs"), { recursive: true });
 mkdirSync(path.join(DATA, "tts"), { recursive: true });
 
-// Token cho agent: data/token (0600), tạo lần đầu chạy
-const TOKEN_FILE = path.join(DATA, "token");
+// Token cho agent: nằm cùng cấu hình (không theo thư mục video) để đổi nơi lưu không đổi token
+const TOKEN_FILE = path.join(CONFIG_DIR, "token");
 if (!existsSync(TOKEN_FILE)) writeFileSync(TOKEN_FILE, `vh_${crypto.randomBytes(24).toString("hex")}\n`, { mode: 0o600 });
 export const TOKEN = readFileSync(TOKEN_FILE, "utf8").trim();
 

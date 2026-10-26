@@ -3,6 +3,7 @@
 POST /tts {"text", "voice"?, "out"} → ghi WAV 48 kHz ra đường dẫn `out`, trả {"duration"}.
 GET  /voices → [{"id", "label"}]
 """
+import json
 import os
 import threading
 import time
@@ -13,7 +14,10 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from vieneu import Vieneu
 
-OUT_ROOT = Path(os.environ.get("VH_DATA", Path(__file__).resolve().parent.parent / "data")).resolve()
+_CFG = Path(os.environ.get("VH_CONFIG", Path.home() / "Library/Application Support/VideoHub")) / "config.json"
+_cfg = json.loads(_CFG.read_text()) if _CFG.exists() else {}
+# Cùng thư mục video với engine (server/config.mjs); TTS chỉ ghi file vào trong đó
+OUT_ROOT = Path(os.environ.get("VH_DATA") or _cfg.get("dataDir") or Path.home() / "Movies/VideoHub").resolve()
 
 app = FastAPI()
 _lock = threading.Lock()  # model không an toàn khi gọi song song

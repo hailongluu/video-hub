@@ -7,14 +7,15 @@ Dịch vụ dựng video cho agent ở các máy khác trong tailnet: giọng đ
 |---|---|
 | MCP | `http://100.72.113.110:8810/mcp` (Streamable HTTP, không phiên, header `Authorization: Bearer <token>`) |
 | Qua ll-hub | `call_upstream_tool(server="video-hub", ...)`; skill `nha-may-video-mac` |
-| Token | `data/token` (0600, tạo lần đầu chạy); hub giữ bản sao ở secret nhóm `video-hub` |
+| Token | `~/Library/Application Support/VideoHub/token` (0600, tạo lần đầu chạy); hub giữ bản sao ở secret nhóm `video-hub` |
+| Nơi lưu video | mặc định `~/Movies/VideoHub` (ngoài iCloud), đổi trong app: **Đổi nơi lưu video…**; ghi ở `~/Library/Application Support/VideoHub/config.json` (`dataDir`), biến `VH_DATA` ghi đè |
 | Truy cập | chỉ `127.0.0.1` và tailnet `100.64.0.0/10`; link tải có khoá riêng trong đường dẫn |
 
 ## Kiến trúc
 ```
 tts/server.py        FastAPI 127.0.0.1:8811, giữ model VieNeu (mặc định v3 Turbo ONNX, CPU) trong RAM; WAV 48 kHz
 server/index.mjs     HTTP :8810 — /mcp, /api/*, /files/<id>/<khoá>/video.mp4, /internal/<khoá chạy>/... (chỉ Chrome cục bộ)
-server/jobs.mjs      hàng đợi 1 job/lần, data/jobs/<id>/job.json; TTS từng cảnh → phụ đề → render
+server/jobs.mjs      hàng đợi 1 job/lần, <nơi lưu>/jobs/<id>/job.json; TTS từng cảnh → phụ đề → render
 server/render.mjs    bundle Remotion 1 lần; renderMedia gl=angle (GPU) + hardwareAcceleration if-possible; ffmpeg loudnorm -14 LUFS
 server/captions.mjs  chia lời đọc thành cụm 2–6 từ, thời gian theo số từ + dấu câu
 server/mcp.mjs       tool: list_voices, create_video, get_video_status, list_videos, text_to_speech
@@ -34,6 +35,9 @@ Nhà máy **không tự chạy** (chạy liên tục làm máy nóng). Mở `~/A
 - **Tắt nhà máy** / **Thoát**: dừng cả hai (kể cả tiến trình chạy tay từ terminal và Chrome của Remotion còn sót).
 - Khi đang bật, Mac không ngủ lúc rảnh (`caffeinate -i`). Gập máy không cắm màn hình ngoài thì vẫn ngủ.
 - `open -a "Video Hub" --args --start`: mở app và bật luôn.
+- **Đổi nơi lưu video…**: chọn thư mục (cảnh báo nếu nằm trong Desktop/Documents vì iCloud đồng bộ), hỏi có chuyển video cũ không.
+  Chuyển thì link tải cũ của agent vẫn dùng được (link = id + khoá của job, không phụ thuộc đường dẫn). Đang bật thì app tự tắt, chuyển, bật lại.
+  Chọn ổ ngoài (`/Volumes/...`) mà ổ chưa cắm thì app báo và không bật.
 
 ```bash
 cd tts && uv sync && cd .. && npm ci
@@ -47,7 +51,7 @@ System Settings → Network → Firewall → Options → cho phép `~/.nvm/versi
 
 ## REST API
 ```bash
-T=$(cat data/token)
+T=$(cat ~/Library/Application\ Support/VideoHub/token)
 curl -s -XPOST localhost:8810/api/videos -H "Authorization: Bearer $T" -H 'content-type: application/json' -d @examples/3-meo-chatgpt.json
 curl -s localhost:8810/api/videos/<id> -H "Authorization: Bearer $T"     # status, progress, download_url
 curl -s -XPOST localhost:8810/api/tts -H "Authorization: Bearer $T" -d '{"text":"Xin chào","voice":"Thiện Minh"}'
