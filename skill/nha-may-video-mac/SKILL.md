@@ -31,7 +31,9 @@ Khi `status = "done"`: `download_url` (MP4) và `poster_url` (ảnh bìa). Link 
 
 ## Viết cảnh cho hay
 - Mỗi cảnh = 1–2 câu lời đọc (`text`, ≤ 800 ký tự) + chữ trên màn hình (`heading`, `bullets` ≤ 6 dòng ngắn, `emoji`). 5–8 cảnh ≈ 30–60 giây.
-- Cảnh đầu là hook: tiêu đề ngắn, bọc *từ khoá* để tô màu nhấn. Cảnh cuối là lời kêu gọi.
+- Cảnh đầu là hook: tiêu đề ngắn, bọc *từ khoá* hoặc *cả cụm từ* để tô màu nhấn. Cảnh cuối là lời kêu gọi.
+- `heading` ≤ 6–7 chữ (khung dọc 9:16 chỉ vừa ~2 dòng chữ lớn); ý dài để ở `bullets` hoặc lời đọc.
+- Không bịa số liệu, phần trăm, "nghiên cứu cho thấy" khi không có nguồn thật.
 - `bullets` hiện lần lượt theo lời đọc: viết khớp thứ tự với câu nói.
 - Lời đọc: viết đúng chính tả, có dấu câu (dấu chấm/phẩy tạo nhịp nghỉ). Số và từ viết tắt nên viết thành chữ nếu cần đọc chuẩn ("ba mẹo", "trí tuệ nhân tạo").
 - `image_url` (http/https, jpg/png/webp ≤ 15 MB): ảnh nền phủ tối + Ken Burns; nhà máy tự tải ảnh về.
@@ -44,3 +46,17 @@ Khi `status = "done"`: `download_url` (MP4) và `poster_url` (ảnh bìa). Link 
 - Hub báo không kết nối được `video-hub`: nhà máy đang **tắt** (Long chỉ bật bằng app "Video Hub" trên thanh menu Mac khi cần, để máy không nóng) hoặc Mac đang ngủ. Báo Long "cần bật Video Hub", không thử lại liên tục.
 - `không có giọng '...'`: gọi `list_voices` lấy đúng id (có dấu, ví dụ "Ngọc Huyền").
 - Job `failed` có `error`: thường do ảnh không tải được; sửa `image_url` rồi gọi lại.
+- Lời gọi `create_video` hiếm khi trả lỗi không rõ dù tham số đúng: gọi lại một lần là được. Vẫn lỗi thì gọi `list_videos` xem job có được tạo không trước khi tạo thêm (tránh dựng trùng).
+
+## Thời gian chờ
+Tổng thời gian ≈ 2,4 lần độ dài video (đọc giọng ~0,6× + dựng hình ~1,6×), cộng thời gian chờ các job khác trong hàng. Video 35 giây ≈ 85 giây.
+Video dài hơn ~100 giây thì `wait_seconds` (tối đa 280) không đủ: gọi `get_video_status` thêm lần nữa, đừng tạo job mới.
+
+## Tự kiểm tra video trước khi giao
+Tải về rồi trích vài khung (`ffmpeg -ss <giây> -i video.mp4 -frames:v 1 f.png`) để xem chữ có tràn, có dấu tiếng Việt đủ không.
+Giữa hai cảnh có hiệu ứng chuyển ~0,4 giây (trượt/mờ dần): khung chụp đúng lúc đó sẽ thấy hai cảnh chồng nhau, **không phải lỗi**. Chọn thời điểm giữa cảnh để kiểm.
+
+## Nhật ký lỗi đã gặp (đã sửa trong nhà máy, ghi lại để biết)
+- 27/10/2026: cụm nhấn nhiều chữ `*ngộp email*` không được tô màu (chỉ nhận `*một-chữ*`) → đã sửa, nay nhấn được cả cụm.
+- 27/10/2026: tiêu đề xuống dòng lẻ một chữ ("Ra lệnh rõ / ràng") → đã sửa, chữ chia dòng cân bằng.
+Gặp lỗi mới: ghi thêm vào đây (ngày, triệu chứng, cách tránh) và báo Long.

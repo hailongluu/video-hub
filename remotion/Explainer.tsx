@@ -90,17 +90,27 @@ const Words: React.FC<{ text: string; size: number; color: string; delay: number
 }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  // *từ* trong tiêu đề được tô màu nhấn
-  const words = text.split(/\s+/).filter(Boolean);
+  // *cụm từ* trong tiêu đề (một hay nhiều chữ) được tô màu nhấn
+  let inHot = false;
+  const words = text.split(/\s+/).filter(Boolean).map((w) => {
+    const opens = w.startsWith("*");
+    const hot = inHot || opens;
+    const closes = /\*[.,!?:;]*$/.test(w) && (w.length > 1 || !opens);
+    inHot = hot && !closes;
+    return { w: w.replace(/\*/g, ""), hot };
+  });
   return (
-    <div style={{ fontSize: size, fontWeight: weight, color, lineHeight: 1.18, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: `0 ${size * 0.28}px` }}>
-      {words.map((w, i) => {
+    // text-wrap: balance để không còn một chữ lẻ ở dòng cuối
+    <div style={{ fontSize: size, fontWeight: weight, color, lineHeight: 1.18, textAlign: "center", textWrap: "balance", wordSpacing: size * 0.05 }}>
+      {words.map(({ w, hot }, i) => {
         const p = spring({ frame: f - delay - i * 3, fps, config: { damping: 14, mass: 0.6 } });
-        const hot = /^\*.*\*[.,!?:]*$/.test(w);
         return (
-          <span key={i} style={{ display: "inline-block", opacity: p, transform: `translateY(${(1 - p) * size * 0.5}px) scale(${0.9 + 0.1 * p})`, color: hot && accent ? accent : undefined }}>
-            {w.replace(/\*/g, "")}
-          </span>
+          <React.Fragment key={i}>
+            <span style={{ display: "inline-block", opacity: p, transform: `translateY(${(1 - p) * size * 0.5}px) scale(${0.9 + 0.1 * p})`, color: hot && accent ? accent : undefined }}>
+              {w}
+            </span>
+            {i < words.length - 1 ? " " : null}
+          </React.Fragment>
         );
       })}
     </div>
