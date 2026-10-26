@@ -1,0 +1,13 @@
+[project]
+name = "tts"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.162.0",
+    "llvmlite<0.45",
+    "numba<0.62",
+    "onnxruntime==1.23.2",
+    "uvicorn>=0.54.0",
+    "vieneu>=3.8.3",
+]
