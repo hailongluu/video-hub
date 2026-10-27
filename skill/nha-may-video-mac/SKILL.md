@@ -27,7 +27,7 @@ call_upstream_tool(server="video-hub", tool="create_video", arguments={
 ```
 Khi `status = "done"`: `download_url` (MP4) và `poster_url` (ảnh bìa). Link có khoá riêng, tải được từ mọi máy trong tailnet không cần token (`curl -o video.mp4 <download_url>`). Không gửi link ra ngoài tailnet: máy ngoài không mở được.
 
-`create_video` và `text_to_speech` không cần xin duyệt (chỉ tạo file nội bộ). **Đăng video lên mạng xã hội/kênh ngoài vẫn phải `request_approval`.**
+`create_video`, `text_to_speech`, `upload_media` không cần xin duyệt (chỉ tạo/lưu file nội bộ). **Đăng video lên mạng xã hội/kênh ngoài vẫn phải `request_approval`.**
 
 ## Hai mẫu video
 | `template` | Dùng khi | Khung | Mỗi cảnh cần |
@@ -60,7 +60,7 @@ Mẫu đầy đủ: `examples/ai-van-phong.json` trong repo github.com/hailonglu
 - Không bịa số liệu, phần trăm, "nghiên cứu cho thấy" khi không có nguồn thật.
 - `bullets` hiện lần lượt theo lời đọc: viết khớp thứ tự với câu nói.
 - Lời đọc: viết đúng chính tả, có dấu câu (dấu chấm/phẩy tạo nhịp nghỉ). Số và từ viết tắt nên viết thành chữ nếu cần đọc chuẩn ("ba mẹo", "trí tuệ nhân tạo").
-- `image_url` (http/https, jpg/png/webp ≤ 15 MB): ảnh nền phủ tối + Ken Burns; nhà máy tự tải ảnh về.
+- `image_url` (`media:<id>` hoặc `https://`, jpg/png/webp/gif ≤ 10 MB): ảnh nền phủ tối + Ken Burns. Ảnh nhiều chữ sẽ đè lên tiêu đề, nên chọn ảnh ít chữ.
 - Phụ đề karaoke bật mặc định (`captions: false` để tắt).
 
 ## Giọng thật của Long ("Long Lưu")
