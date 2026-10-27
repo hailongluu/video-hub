@@ -29,6 +29,30 @@ Khi `status = "done"`: `download_url` (MP4) và `poster_url` (ảnh bìa). Link 
 
 `create_video` và `text_to_speech` không cần xin duyệt (chỉ tạo file nội bộ). **Đăng video lên mạng xã hội/kênh ngoài vẫn phải `request_approval`.**
 
+## Hai mẫu video
+| `template` | Dùng khi | Khung | Mỗi cảnh cần |
+|---|---|---|---|
+| `explainer` (mặc định) | giải thích, mẹo, danh sách | 9:16 / 16:9 / 1:1, 5 `theme` | `text` + `heading`/`bullets`/`emoji`/`image_url` |
+| `kinetic` | video ngắn kể theo nhịp, chữ động mạnh | chỉ 9:16, `style`: `vox` (giấy, halftone) / `kinetic` (nền tối, xanh chanh) | `text` + `kind` + trường theo kind |
+
+**Mẫu kinetic** — xếp cảnh theo nhịp `hook → item… → warn → risk → takeaway → cta` (không bắt buộc đủ cả):
+- `hook`: `kicker` (dòng nhỏ), `lines` (2–3 dòng chữ lớn, dòng 2 to nhất, bọc `*từ*` để nhấn)
+- `item`: `num`, `title`, `prompt` (câu lệnh mẫu hiện trong khung), `visual` một trong:
+  `{"type":"table","head":[...],"rows":[[...]]}` · `{"type":"rewrite","before":"...","after":"...","hot":["từ","nhấn"]}` ·
+  `{"type":"sort","groups":["A","B","C"],"notes":[{"t":"ghi chú","g":0}]}`
+- `warn`: `title`, `sub` · `risk`: `title`, `visual: {"before","wrong","after","sign"}` (câu có một chữ sai bị khoanh)
+- `takeaway`: `title` · `cta`: `title`, `sub`
+Mẫu đầy đủ: `examples/ai-van-phong.json` trong repo github.com/hailongluu/video-hub (đổi khoá `voice` thành `text`).
+
+## Nhạc nền, ảnh, file của mình
+- `list_music` → tên nhạc có sẵn; truyền `music: "<tên>"`. Kinetic mặc định có nhạc theo style; explainer mặc định không nhạc; `music: "none"` để tắt.
+  Nhạc tự nhỏ lại khi có giọng (sidechain), nhỏ dần cuối video, cả bản chuẩn -14 LUFS.
+- **Tải file của mình lên:** `upload_media(filename, data_base64)` (nội dung file mã hoá base64) hoặc `upload_media(url="https://...")`
+  → trả `media_id` dạng `media:<id>`. Ảnh jpg/png/webp/gif, nhạc m4a/mp3/wav/ogg (≤ 10 phút), tối đa 10 MB/file.
+  Dùng: `image_url: "media:<id>"` (cảnh explainer) hoặc `music: "media:<id>"`. File giữ trên nhà máy, dùng lại được cho nhiều video.
+- `image_url`/`music` cũng nhận thẳng `https://...` (nhà máy tự tải về).
+- Chỉ dùng nhạc/ảnh có quyền sử dụng (tự làm, mua bản quyền, CC0). Không lấy nhạc/ảnh trên mạng về dùng tuỳ tiện.
+
 ## Viết cảnh cho hay
 - Mỗi cảnh = 1–2 câu lời đọc (`text`, ≤ 800 ký tự) + chữ trên màn hình (`heading`, `bullets` ≤ 6 dòng ngắn, `emoji`). 5–8 cảnh ≈ 30–60 giây.
 - Cảnh đầu là hook: tiêu đề ngắn, bọc *từ khoá* hoặc *cả cụm từ* để tô màu nhấn. Cảnh cuối là lời kêu gọi.
@@ -65,4 +89,7 @@ Giữa hai cảnh có hiệu ứng chuyển ~0,4 giây (trượt/mờ dần): kh
 ## Nhật ký lỗi đã gặp (đã sửa trong nhà máy, ghi lại để biết)
 - 27/10/2026: cụm nhấn nhiều chữ `*ngộp email*` không được tô màu (chỉ nhận `*một-chữ*`) → đã sửa, nay nhấn được cả cụm.
 - 27/10/2026: tiêu đề xuống dòng lẻ một chữ ("Ra lệnh rõ / ràng") → đã sửa, chữ chia dòng cân bằng.
+- 27/10/2026: mẫu kinetic + nhạc nền trước chỉ chạy bằng script trên Mac, agent qua hub không gọi được, không gửi được ảnh/nhạc của mình → nay có `template`, `style`, `music`, `list_music`, `upload_media`.
+- 27/10/2026: trộn nhạc treo vô hạn (job kẹt ở "trộn âm thanh") do ffmpeg 4.3 của Anaconda → nhà máy dùng ffmpeg Homebrew 8.x. Job lỗi giờ báo đúng lý do của ffmpeg.
+- 27/10/2026: video có nhạc to hơn chuẩn (-10,9 LUFS) → đã thêm bước đo và chỉnh về -14 LUFS.
 Gặp lỗi mới: ghi thêm vào đây (ngày, triệu chứng, cách tránh) và báo Long.

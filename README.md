@@ -18,8 +18,10 @@ server/index.mjs     HTTP :8810 — /mcp, /api/*, /files/<id>/<khoá>/video.mp4,
 server/jobs.mjs      hàng đợi 1 job/lần, <nơi lưu>/jobs/<id>/job.json; TTS từng cảnh → phụ đề → render
 server/render.mjs    bundle Remotion 1 lần; renderMedia gl=angle (GPU) + hardwareAcceleration if-possible; ffmpeg loudnorm -14 LUFS
 server/captions.mjs  chia lời đọc thành cụm 2–6 từ, thời gian theo số từ + dấu câu
-server/mcp.mjs       tool: list_voices, create_video, get_video_status, list_videos, text_to_speech
-remotion/            composition Explainer (9:16/16:9/1:1, 5 bảng màu, emoji, bullet, ảnh Ken Burns, phụ đề karaoke)
+server/mcp.mjs       tool: list_voices, list_music, upload_media, create_video, get_video_status, list_videos, text_to_speech
+server/media.mjs     file tải lên (<nơi lưu>/media, kiểm loại theo byte đầu), thư viện nhạc <nơi lưu>/assets/music, tham chiếu media:<id>
+server/audio.mjs     trộn giọng + nhạc (sidechain) + tiếng nhấn, đo lại và chỉnh -14 LUFS (dùng chung với scripts/render-kinetic.mjs)
+remotion/            Explainer (9:16/16:9/1:1, 5 bảng màu, emoji, bullet, ảnh Ken Burns, phụ đề karaoke) và Kinetic (9:16, vox/kinetic, cảnh theo kind)
 skill/               skill hướng dẫn agent (đăng lên ll-hub)
 app/VideoHub.swift   app thanh menu bật/tắt (scripts/build-app.sh)
 ```
@@ -54,10 +56,12 @@ System Settings → Network → Firewall → Options → cho phép `~/.nvm/versi
 T=$(cat ~/Library/Application\ Support/VideoHub/token)
 curl -s -XPOST localhost:8810/api/videos -H "Authorization: Bearer $T" -H 'content-type: application/json' -d @examples/3-meo-chatgpt.json
 curl -s localhost:8810/api/videos/<id> -H "Authorization: Bearer $T"     # status, progress, download_url
+curl -s localhost:8810/api/music -H "Authorization: Bearer $T"
+curl -s -XPOST localhost:8810/api/media -H "Authorization: Bearer $T" -d "{\"filename\":\"a.jpg\",\"data_base64\":\"$(base64 -i a.jpg)\"}"
 curl -s -XPOST localhost:8810/api/tts -H "Authorization: Bearer $T" -d '{"text":"Xin chào","voice":"Thiện Minh"}'
 ```
-Body `create`: `title`, `aspect` (9:16|16:9|1:1), `theme` (midnight|sunrise|ocean|forest|paper), `voice`, `brand`, `captions`,
-`scenes[]` = `{text, heading?, bullets?, emoji?, image_url?}` (≤ 30 cảnh, ≤ 800 ký tự/cảnh, ≤ 8000 tổng).
+Body `create`: `template` (explainer|kinetic), `style` (vox|kinetic), `music` (tên/media:<id>/https/none), `title`, `aspect` (9:16|16:9|1:1), `theme` (midnight|sunrise|ocean|forest|paper), `voice`, `brand`, `captions`,
+`scenes[]` = `{text, heading?, bullets?, emoji?, image_url?}` (explainer) hoặc `{text, kind, kicker?, lines?, num?, title?, sub?, prompt?, visual?}` (kinetic) (≤ 30 cảnh, ≤ 800 ký tự/cảnh, ≤ 8000 tổng).
 
 ## Giọng riêng (giọng thật của Long)
 `~/Library/Application Support/VideoHub/custom_voices.json` (0600, KHÔNG nằm trong repo): vân giọng + mã tham chiếu, TTS nạp khi khởi động.
@@ -70,4 +74,5 @@ Không cần fine-tune: v3 Turbo clone tức thì trên CPU; bản fine-tune LoR
 ## Ghi chú cài đặt
 - `vieneu` trên Mac Intel: phải ghim `onnxruntime==1.23.2`, `numba<0.62`, `llvmlite<0.45` (bản mới không có wheel x86_64 macOS).
 - Giọng có watermark không nghe được của VieNeu (mặc định của thư viện).
-- Chưa có nhạc nền (nhạc FreePD nằm ở nhà máy video trên home-3).
+- ffmpeg: dùng bản Homebrew (`/usr/local/bin`, 8.x). Bản 4.3 kèm Anaconda treo vô hạn với đồ thị lọc apad+atrim khi trộn nhạc; `scripts/build-app.sh` tự chọn Homebrew.
+- Nhạc trong `assets/music` (advertime, motions, screen-saver) do agent soạn mẫu kinetic đưa vào; nguồn/giấy phép cần Long xác nhận trước khi đăng video có nhạc này.

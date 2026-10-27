@@ -6,7 +6,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$HOME/Applications/Video Hub.app"
 NODE="$(command -v node)"
 UV="$(command -v uv)"
-FFDIR="$(dirname "$(command -v ffmpeg)")"
+# ưu tiên ffmpeg của Homebrew: bản 4.3 kèm Anaconda treo vô hạn với đồ thị lọc apad+atrim khi trộn nhạc (gặp 27/10/2026)
+FFDIR=""
+for d in /opt/homebrew/bin /usr/local/bin; do [ -x "$d/ffmpeg" ] && { FFDIR="$d"; break; }; done
+[ -n "$FFDIR" ] || FFDIR="$(dirname "$(command -v ffmpeg)")"
+"$FFDIR/ffmpeg" -version | head -1
 PATHV="$(dirname "$NODE"):$FFDIR:$(dirname "$UV"):/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 rm -rf "$APP"

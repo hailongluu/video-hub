@@ -1,6 +1,7 @@
 import React from "react";
 import { Composition } from "remotion";
 import { Explainer, explainerSchema, explainerMetadata, type ExplainerProps } from "./Explainer";
+import { Kinetic, kineticSchema, kineticMetadata } from "./Kinetic";
 
 const sample: ExplainerProps = {
   title: "Ba mẹo dùng ChatGPT",
@@ -20,6 +21,7 @@ const sample: ExplainerProps = {
 };
 
 export const Root: React.FC = () => (
+  <>
   <Composition
     id="Explainer"
     component={Explainer}
@@ -31,4 +33,16 @@ export const Root: React.FC = () => (
     height={1920}
     durationInFrames={300}
   />
+  <Composition
+    id="Kinetic"
+    component={Kinetic}
+    schema={kineticSchema}
+    defaultProps={{ style: "vox", scenes: [{ kind: "hook", duration: 3, captions: [], lines: ["Thử", "*kinetic*"] }] }}
+    calculateMetadata={kineticMetadata}
+    fps={30}
+    width={1080}
+    height={1920}
+    durationInFrames={300}
+  />
+  </>
 );

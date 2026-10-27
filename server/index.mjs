@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 import { DATA, HOST, INTERNAL_KEY, PORT, TOKEN, ttsVoices } from "./config.mjs";
 import { createJob, getJob, jobDir, listJobs, validate } from "./jobs.mjs";
 import { publicJob, speak } from "./api.mjs";
+import { listMusic, uploadBase64, uploadFromUrl } from "./media.mjs";
 import { handleMcp } from "./mcp.mjs";
 import { ensureBundle } from "./render.mjs";
 
@@ -57,6 +58,7 @@ function sendFile(req, res, file) {
 }
 
 const SAFE = /^[A-Za-z0-9._-]+$/;
+const UPLOAD_LIMIT = 16e6; // /mcp và /api/media: file 10 MB mã hoá base64
 
 async function route(req, res) {
   const ip = ipOf(req);
@@ -87,7 +89,7 @@ async function route(req, res) {
 
   if (url.pathname === "/mcp") {
     if (req.method !== "POST") return send(res, 405, { error: "MCP chỉ nhận POST (không phiên)" });
-    return handleMcp(req, res, await readBody(req));
+    return handleMcp(req, res, await readBody(req, UPLOAD_LIMIT));
   }
   if (url.pathname === "/api/voices") return send(res, 200, { voices: await ttsVoices() });
   if (url.pathname === "/api/videos" && req.method === "POST") {
@@ -98,6 +100,11 @@ async function route(req, res) {
   if (p[0] === "api" && p[1] === "videos" && p.length === 3) {
     const j = getJob(p[2]);
     return j ? send(res, 200, publicJob(j)) : send(res, 404, { error: "không có job" });
+  }
+  if (url.pathname === "/api/music") return send(res, 200, { music: listMusic() });
+  if (url.pathname === "/api/media" && req.method === "POST") {
+    const b = (await readBody(req, UPLOAD_LIMIT)) || {};
+    return send(res, 201, b.data_base64 ? await uploadBase64(b.filename, b.data_base64) : await uploadFromUrl(String(b.url || "")));
   }
   if (url.pathname === "/api/tts" && req.method === "POST") {
     const b = (await readBody(req)) || {};

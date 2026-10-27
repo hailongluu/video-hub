@@ -101,8 +101,13 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         wanted = false
         for p in [engine, tts] { if let p = p, p.isRunning { p.terminate() } }
         engine = nil; tts = nil
-        // cả tiến trình chạy ngoài app (mở bằng terminal) và Chrome của Remotion còn sót
-        for pat in ["node server/index.mjs", "python server.py", "chrome-headless-shell"] {
+        // cả tiến trình chạy ngoài app (mở bằng terminal) và Chrome của Remotion còn sót. Mẫu neo trọn dòng lệnh
+        // (^...$): khớp chuỗi con từng diệt nhầm cả shell khác có nhắc tới "node server/index.mjs" trong lệnh.
+        let esc = { (s: String) in NSRegularExpression.escapedPattern(for: s) }
+        for pat in ["^(\\S*/)?node server/index\\.mjs$",
+                    "^(\\S*/)?uv run( --frozen)? python server\\.py$",
+                    "^\\S*/(Python|python3?(\\.[0-9]+)?) server\\.py$",
+                    "^" + esc(root) + "/node_modules/\\.remotion/\\S*chrome-headless-shell"] {
             let k = Process()
             k.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
             k.arguments = ["-f", pat]
